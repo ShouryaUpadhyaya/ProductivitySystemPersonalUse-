@@ -6,13 +6,15 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js"
+    "dev": "nodemon src/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "nodemon": "^3.1.11"
   }
 }
