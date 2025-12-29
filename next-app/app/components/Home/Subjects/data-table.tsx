@@ -39,13 +39,8 @@ export function DataTable<TData, TValue>({
             return (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const rowTitle = flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  );
-                  const goalRow = rowTitle == "Goal (hrs)";
                   return (
-                    <TableHead key={header.id} className={goalRow ? "" : ""}>
+                    <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -67,15 +62,8 @@ export function DataTable<TData, TValue>({
                 data-state={row.getIsSelected() && "selected"}
               >
                 {row.getVisibleCells().map((cell) => {
-                  // let cellData = flexRender(
-                  //   cell.column.columnDef.cell,
-                  //   cell.getContext()
-                  // );
                   return (
-                    <TableCell
-                      key={cell.id}
-                      //   className={cellData ? "text-red-700" : ` text-green-500`}
-                    >
+                    <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()

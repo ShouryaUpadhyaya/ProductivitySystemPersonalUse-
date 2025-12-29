@@ -15,13 +15,12 @@ import { Input } from "@/components/ui/input";
 function Subjects() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [runningSubjectId, setRunningSubjectId] = useState<string | null>(null);
-  const [timer, setTimer] = useState(0);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (runningSubjectId) {
       interval = setInterval(() => {
-        setTimer((prev) => prev + 1);
         setSubjects((prevSubjects) =>
           prevSubjects.map((subject) =>
             subject.id === runningSubjectId
@@ -44,6 +43,7 @@ function Subjects() {
       date: new Date().toLocaleDateString(),
     };
     setSubjects((prev) => [...prev, newSubject]);
+    setIsDialogOpen(false);
   };
 
   const toggleTimer = (subjectId: string) => {
@@ -55,12 +55,20 @@ function Subjects() {
   };
 
   return (
-    <section className="container mx-auto py-10">
+    <section className="container mx-10 pt-20 min-h-[50vh] flex flex-col ">
       <div className="flex justify-between mb-4">
-        <h1 className="text-2xl font-bold">Subjects</h1>
-        <Dialog>
+        <h1 className="text-4xl font-bold">Subjects</h1>
+      </div>
+      <DataTable
+        columns={columns({ toggleTimer, runningSubjectId })}
+        data={subjects}
+      />
+      <div className="flex justify-end mt-6">
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>Add Subject</Button>
+            <Button size={"lg"} className=" font-bold">
+              Add Subject
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -71,30 +79,31 @@ function Subjects() {
                 e.preventDefault();
                 const form = e.currentTarget;
                 const name = (form.elements[0] as HTMLInputElement).value;
-                const goalWorkHrs = parseFloat(
-                  (form.elements[1] as HTMLInputElement).value
-                );
-                addSubject(name, goalWorkHrs * 3600);
+                const hours =
+                  Number((form.elements[1] as HTMLInputElement).value) || 0;
+                const minutes =
+                  Number((form.elements[2] as HTMLInputElement).value) || 0;
+                const seconds =
+                  Number((form.elements[3] as HTMLInputElement).value) || 0;
+                const goalWorkSecs = hours * 3600 + minutes * 60 + seconds;
+                addSubject(name, goalWorkSecs);
                 form.reset();
               }}
               className="flex flex-col gap-4"
             >
               <Input placeholder="Subject Name" required />
-              <Input
-                placeholder="Goal Work Hours"
-                type="number"
-                step="0.1"
-                required
-              />
+              <div className="flex items-center gap-2">
+                <Input placeholder="hh" type="number" />
+                <span>:</span>
+                <Input placeholder="mm" type="number" />
+                <span>:</span>
+                <Input placeholder="ss" type="number" />
+              </div>
               <Button type="submit">Add</Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
-      <DataTable
-        columns={columns({ toggleTimer, runningSubjectId })}
-        data={subjects}
-      />
     </section>
   );
 }

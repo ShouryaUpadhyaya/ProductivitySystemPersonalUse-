@@ -22,6 +22,18 @@ export const columns = ({
   runningSubjectId: string | null;
 }): ColumnDef<Subject>[] => [
   {
+    id: "actions",
+    cell: ({ row }) => {
+      const subject = row.original;
+      const isRunning = runningSubjectId === subject.id;
+      return (
+        <Button onClick={() => toggleTimer(subject.id)} variant="ghost">
+          {isRunning ? <IoIosPause /> : <IoIosPlay />}
+        </Button>
+      );
+    },
+  },
+  {
     accessorKey: "name",
     header: "Subject",
   },
@@ -43,9 +55,11 @@ export const columns = ({
     header: "Worked (hrs)",
     cell: ({ row }) => {
       const { workSecs, goalWorkSecs } = row.original;
-      const workHrs = Math.round(workSecs / 3600);
-      const workMins = Math.round(workSecs % 3600);
-      const workSecsToShow = Math.round(workSecs % 60);
+
+      const hours = Math.floor(workSecs / 3600);
+      const minutes = Math.floor((workSecs % 3600) / 60);
+      const seconds = Math.floor(workSecs % 60);
+
       const percent =
         goalWorkSecs > 0 ? Math.round((workSecs / goalWorkSecs) * 100) : 0;
 
@@ -58,32 +72,25 @@ export const columns = ({
         color: `hsl(${hue}, 80%, 45%)`,
       };
 
+      const pad = (n: number) => String(n).padStart(2, "0");
+
       return (
         <span style={style}>
-          `${workHrs.toFixed(2)}:${workMins.toFixed(2)}:$
-          {workSecsToShow.toFixed(2)}`
+          {`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`}
         </span>
       );
     },
   },
   {
-    accessorKey: "goalWorkHrs",
+    accessorKey: "goalWorkSecs",
     header: "Goal (hrs)",
+    cell: ({ row }) => {
+      const { goalWorkSecs } = row.original;
+      return (goalWorkSecs / 3600).toFixed(1);
+    },
   },
   {
     accessorKey: "date",
     header: "Date",
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => {
-      const subject = row.original;
-      const isRunning = runningSubjectId === subject.id;
-      return (
-        <Button onClick={() => toggleTimer(subject.id)} variant="ghost">
-          {isRunning ? <IoIosPause /> : <IoIosPlay />}
-        </Button>
-      );
-    },
   },
 ];
