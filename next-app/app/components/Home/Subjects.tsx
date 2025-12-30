@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Subject, columns } from "./Subjects/columbs";
 import { DataTable } from "./Subjects/data-table";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,12 @@ function Subjects() {
   const { addSubject, Subjects, toggleTimer, timerRunningSubjectId } =
     useCounterStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const router = useRouter();
+
+  const handlePlayClick = (subjectId: string) => {
+    toggleTimer(subjectId);
+    router.push("/pomodoro");
+  };
 
   const addsubject = (name: string, goalWorkSecs: number) => {
     const newSubject: Subject = {
@@ -38,7 +45,7 @@ function Subjects() {
       </div>
       <DataTable
         columns={columns({
-          toggleTimer,
+          toggleTimer: handlePlayClick,
           runningSubjectId: timerRunningSubjectId,
         })}
         data={Subjects}

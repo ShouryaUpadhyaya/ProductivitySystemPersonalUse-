@@ -1,49 +1,82 @@
 "use client";
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useCounterStore } from "@/store/useStore";
-import { ConvertSecsToTimer, pad } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import ClockCircle from "../components/Home/ClockCircle";
+import ClockTime from "../components/Home/ClockTime";
+import { ConvertSecsToTimer } from "@/lib/utils";
+import { IoIosPause } from "react-icons/io";
+import { Progress } from "@/components/ui/progress";
 
-function Page() {
-  const { timerRunningSubjectId, Subjects, pomodoroTimer, toggleTimer } =
+function PomodoroPage() {
+  const { timerRunningSubjectId, toggleTimer, Subjects, pomodoroTimer } =
     useCounterStore();
+  const router = useRouter();
+
+  const handlePauseClick = () => {
+    if (timerRunningSubjectId) {
+      toggleTimer(timerRunningSubjectId);
+    }
+    router.push("/");
+  };
 
   const runningSubject = Subjects.find(
     (subject) => subject.id === timerRunningSubjectId
   );
 
-  const workSecs = runningSubject?.workSecs ?? pomodoroTimer;
-  const goalWorkSecs = runningSubject?.goalWorkSecs;
+  let displayHours, displayMinutes, displaySeconds, circlePercent, progressBarPercent;
 
-  let { hours, minutes, seconds, percent } = ConvertSecsToTimer({
-    workSecs,
-    goalWorkSecs,
-  });
+  if (runningSubject) {
+    const workedSecs = runningSubject.workSecs ?? 0;
+    const goalWorkSecs = runningSubject.goalWorkSecs;
+    const { hours, minutes, seconds } = ConvertSecsToTimer({
+      workSecs: workedSecs,
+    });
+    displayHours = hours;
+    displayMinutes = minutes;
+    displaySeconds = seconds;
 
-  if (!runningSubject) {
-    percent = 100;
+    circlePercent = ((workedSecs % pomodoroTimer) / pomodoroTimer) * 100;
+    progressBarPercent = goalWorkSecs ? (workedSecs / goalWorkSecs) * 100 : 0;
+  } else {
+    const { hours, minutes, seconds } = ConvertSecsToTimer({
+      workSecs: pomodoroTimer,
+    });
+    displayHours = hours;
+    displayMinutes = minutes;
+    displaySeconds = seconds;
+    circlePercent = 100;
+    progressBarPercent = 0;
   }
 
   return (
-    <section className="flex justify-center items-center h-screen w-screen ">
-      <div
-        className="relative h-[80vh] w-[80vh] flex justify-center items-center"
-        onClick={() => toggleTimer(runningSubject)}
-      >
-        <div
-          className="absolute w-full h-full rounded-full"
-          style={{
-            background: `conic-gradient(var(--primary) ${percent}%, var(--card) 0)`,
-            transition: "background 0.5s ease-out",
-          }}
-        />
-        <div className="relative text-4xl">
-          <h1 className="font-bold text-primary-foreground">
-            {pad(hours)} : {pad(minutes)} : {pad(seconds)}
-          </h1>
+    <section className="flex flex-col justify-center items-center h-screen w-screen gap-8">
+      {runningSubject && (
+        <h1 className="text-5xl font-bold">{runningSubject.name}</h1>
+      )}
+      <ClockCircle percent={circlePercent} size="lg" />
+      {runningSubject && (
+        <div className="w-1/2">
+          <Progress value={progressBarPercent} />
         </div>
+      )}
+      <div className="flex flex-col items-center gap-8">
+        <ClockTime
+          hours={displayHours}
+          minutes={displayMinutes}
+          seconds={displaySeconds}
+        />
+        <Button
+          onClick={handlePauseClick}
+          variant="secondary"
+          className="scale-150 "
+        >
+          <IoIosPause size={48} />
+        </Button>
       </div>
     </section>
   );
 }
 
-export default Page;
+export default PomodoroPage;

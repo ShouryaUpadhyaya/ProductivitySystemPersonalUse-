@@ -1,10 +1,11 @@
 import React from "react";
 import { useCounterStore } from "@/store/useStore";
-import { ConvertSecsToTimer, pad } from "@/lib/utils";
+import { ConvertSecsToTimer } from "@/lib/utils";
+import ClockCircle from "./ClockCircle";
+import ClockTime from "./ClockTime";
 
 function Clock() {
-  const { timerRunningSubjectId, Subjects, pomodoroTimer, toggleTimer } =
-    useCounterStore();
+  const { timerRunningSubjectId, Subjects, pomodoroTimer } = useCounterStore();
 
   const runningSubject = Subjects.find(
     (subject) => subject.id === timerRunningSubjectId
@@ -24,21 +25,15 @@ function Clock() {
 
   return (
     <section className="flex justify-center items-center">
-      <div
-        className="relative my-10 mx-5 h-[40vh] w-[40vh] flex justify-center items-center"
-        onClick={() => toggleTimer(runningSubject)}
-      >
-        <div
-          className="absolute w-full h-full rounded-full"
-          style={{
-            background: `conic-gradient(var(--primary) ${percent}%, var(--card) 0)`,
-            transition: "background 0.5s ease-out",
-          }}
-        />
-        <div className="relative text-4xl">
-          <h1 className="font-bold text-primary-foreground">
-            {pad(hours)} : {pad(minutes)} : {pad(seconds)}
-          </h1>
+      <div className="relative flex justify-center items-center">
+        <ClockCircle percent={percent} size="sm" />
+        <div className="absolute">
+          <ClockTime
+            hours={hours}
+            minutes={minutes}
+            seconds={seconds}
+            color={"#fff"}
+          />
         </div>
       </div>
     </section>
