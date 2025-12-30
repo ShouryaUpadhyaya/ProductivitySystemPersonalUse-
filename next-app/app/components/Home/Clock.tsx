@@ -1,21 +1,45 @@
 import React from "react";
+import { useCounterStore } from "@/store/useStore";
+import { ConvertSecsToTimer, pad } from "@/lib/utils";
 
-type Prop = {
-  time: {
-    hr: string;
-    min?: string;
-    sec?: string;
-  };
-};
-function Clock({ time }: Prop) {
+function Clock() {
+  const { timerRunningSubjectId, Subjects, pomodoroTimer, toggleTimer } =
+    useCounterStore();
+
+  const runningSubject = Subjects.find(
+    (subject) => subject.id === timerRunningSubjectId
+  );
+
+  const workSecs = runningSubject?.workSecs ?? pomodoroTimer;
+  const goalWorkSecs = runningSubject?.goalWorkSecs;
+
+  let { hours, minutes, seconds, percent } = ConvertSecsToTimer({
+    workSecs,
+    goalWorkSecs,
+  });
+
+  if (!runningSubject) {
+    percent = 100;
+  }
+
   return (
-    <section>
-      <div className="rounded-[50%] my-10 mx-5 h-[40vh] w-[40vh] flex justify-center items-center bg-primary p-3 text-4xl ">
-        <h1 className=" font-bold">
-          {time.hr ? time.hr + " : " : ""}{" "}
-          {time.min ? `${time.min} : ` : "00 : "}
-          {time.sec ? time.sec : "00"}
-        </h1>
+    <section className="flex justify-center items-center">
+      <div
+        className="relative my-10 mx-5 h-[40vh] w-[40vh] flex justify-center items-center"
+        onClick={() => toggleTimer(runningSubject)}
+      >
+        <div
+          className="absolute w-full h-full rounded-full"
+          style={{
+            background: `conic-gradient(var(--primary) ${percent}%, var(--card) 0)`,
+            transition: "background 0.5s ease-out",
+          }}
+        />
+        <div className="relative text-4xl">
+          <h1 className="font-bold text-primary-foreground">
+            {pad(hours)} : {pad(minutes)} : {pad(seconds)}
+          </h1>
+        </div>
       </div>
     </section>
   );

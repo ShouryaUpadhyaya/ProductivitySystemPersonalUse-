@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-row gap-4">
-        <Clock time={{ hr: "01" }} />
+        <Clock />
         <Subjects />
       </div>
       <div className="flex flex-row gap-4">

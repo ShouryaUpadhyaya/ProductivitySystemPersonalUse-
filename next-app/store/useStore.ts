@@ -7,6 +7,7 @@ type CounterStore = {
   Habits: Habit[];
   timerRunningSubjectId: string | null;
   timer: NodeJS.Timeout | null;
+  pomodoroTimer: number;
   addSubject: (subject: Subject) => void;
   addHabit: (habit: Habit) => void;
   incrementWorkSecs: (id: string, newWorkSecs: number) => void;
@@ -14,6 +15,7 @@ type CounterStore = {
 };
 
 export const useCounterStore = create<CounterStore>((set, get) => ({
+  pomodoroTimer: 3600,
   Subjects: [
     {
       id: "123",
