@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Subject, columns } from "./Subjects/columbs";
 import { DataTable } from "./Subjects/data-table";
 import { Button } from "@/components/ui/button";
@@ -14,33 +14,9 @@ import { Input } from "@/components/ui/input";
 import { useCounterStore } from "@/store/useStore";
 
 function Subjects() {
-  const { addSubject, updateSubjectWorkSecs, Subjects } = useCounterStore();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [runningSubjectId, setRunningSubjectId] = useState<string | null>(null);
+  const { addSubject, Subjects, toggleTimer, timerRunningSubjectId } =
+    useCounterStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    let lastRecordedWorkTime: number;
-    if (runningSubjectId) {
-      interval = setInterval(() => {
-        setSubjects((prevSubjects) =>
-          prevSubjects.map((subject) => {
-            lastRecordedWorkTime = subject.workSecs;
-            return subject.id === runningSubjectId
-              ? { ...subject, workSecs: subject.workSecs + 1 }
-              : subject;
-          })
-        );
-      }, 1000);
-    }
-    return () => {
-      runningSubjectId
-        ? updateSubjectWorkSecs(runningSubjectId, lastRecordedWorkTime)
-        : console.log("no runningSubjectId");
-      clearInterval(interval);
-    };
-  }, [runningSubjectId]);
 
   const addsubject = (name: string, goalWorkSecs: number) => {
     const newSubject: Subject = {
@@ -52,16 +28,7 @@ function Subjects() {
       date: new Date().toLocaleDateString(),
     };
     addSubject(newSubject);
-    setSubjects((prev) => [...prev, newSubject]);
     setIsDialogOpen(false);
-  };
-
-  const toggleTimer = (subjectId: string) => {
-    if (runningSubjectId === subjectId) {
-      setRunningSubjectId(null);
-    } else {
-      setRunningSubjectId(subjectId);
-    }
   };
 
   return (
@@ -70,7 +37,10 @@ function Subjects() {
         <h1 className="text-4xl font-bold">Subjects</h1>
       </div>
       <DataTable
-        columns={columns({ toggleTimer, runningSubjectId })}
+        columns={columns({
+          toggleTimer,
+          runningSubjectId: timerRunningSubjectId,
+        })}
         data={Subjects}
       />
       <div className="flex justify-end mt-6">
