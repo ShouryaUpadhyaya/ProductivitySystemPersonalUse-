@@ -2,14 +2,34 @@ import { create } from "zustand";
 import { Subject } from "../app/components/Home/Subjects/columbs";
 import { Habit } from "../app/components/Home/Habits";
 
+export type Subtask = {
+  id: string;
+  text: string;
+  completed: boolean;
+};
+
+export type Todo = {
+  id: string;
+  text: string;
+  completed: boolean;
+  subtasks: Subtask[];
+};
+
 type CounterStore = {
   Subjects: Subject[];
   Habits: Habit[];
+  Todos: Todo[];
   timerRunningSubjectId: string | null;
   timer: NodeJS.Timeout | null;
   pomodoroTimer: number;
   addSubject: (subject: Subject) => void;
   addHabit: (habit: Habit) => void;
+  addTodo: (text: string) => void;
+  toggleTodo: (id: string) => void;
+  deleteTodo: (id: string) => void;
+  addSubtask: (todoId: string, text: string) => void;
+  toggleSubtask: (todoId: string, subtaskId: string) => void;
+  deleteSubtask: (todoId: string, subtaskId: string) => void;
   incrementWorkSecs: (id: string, newWorkSecs: number) => void;
   toggleTimer: (id: string) => void;
 };
@@ -28,6 +48,7 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
     },
   ],
   Habits: [{ id: "123", name: "coding", completed: false }],
+  Todos: [],
   timerRunningSubjectId: null,
   timer: null,
   addSubject: ({
@@ -48,6 +69,71 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
   },
   addHabit: ({ id, name, completed }: Habit) => {
     set((state) => ({ Habits: [...state.Habits, { id, name, completed }] }));
+  },
+  addTodo: (text: string) => {
+    set((state) => ({
+      Todos: [
+        ...state.Todos,
+        { id: crypto.randomUUID(), text, completed: false, subtasks: [] },
+      ],
+    }));
+  },
+  toggleTodo: (id: string) => {
+    set((state) => ({
+      Todos: state.Todos.map((todo) =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      ),
+    }));
+  },
+  deleteTodo: (id: string) => {
+    set((state) => ({
+      Todos: state.Todos.filter((todo) => todo.id !== id),
+    }));
+  },
+  addSubtask: (todoId: string, text: string) => {
+    set((state) => ({
+      Todos: state.Todos.map((todo) =>
+        todo.id === todoId
+          ? {
+              ...todo,
+              subtasks: [
+                ...todo.subtasks,
+                { id: crypto.randomUUID(), text, completed: false },
+              ],
+            }
+          : todo
+      ),
+    }));
+  },
+  toggleSubtask: (todoId: string, subtaskId: string) => {
+    set((state) => ({
+      Todos: state.Todos.map((todo) =>
+        todo.id === todoId
+          ? {
+              ...todo,
+              subtasks: todo.subtasks.map((subtask) =>
+                subtask.id === subtaskId
+                  ? { ...subtask, completed: !subtask.completed }
+                  : subtask
+              ),
+            }
+          : todo
+      ),
+    }));
+  },
+  deleteSubtask: (todoId: string, subtaskId: string) => {
+    set((state) => ({
+      Todos: state.Todos.map((todo) =>
+        todo.id === todoId
+          ? {
+              ...todo,
+              subtasks: todo.subtasks.filter(
+                (subtask) => subtask.id !== subtaskId
+              ),
+            }
+          : todo
+      ),
+    }));
   },
   incrementWorkSecs: (id: string, newWorkSecs: number) => {
     set((state) => ({
