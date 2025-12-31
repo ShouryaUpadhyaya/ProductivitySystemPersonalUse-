@@ -1,13 +1,26 @@
 "use client";
 import React, { useState } from "react";
-import { useCounterStore } from "@/store/useStore";
+import { useCounterStore, Todo, Subtask } from "@/store/useStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TrashIcon, CornerDownRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TrashIcon, CornerDownRight, MoreVertical, Plus } from "lucide-react";
 
 // Small component for adding subtasks
-function SubtaskInput({ todoId }: { todoId: string }) {
+function SubtaskInput({
+  todoId,
+  onDone,
+}: {
+  todoId: string;
+  onDone: () => void;
+}) {
   const { addSubtask } = useCounterStore();
   const [newSubtaskText, setNewSubtaskText] = useState("");
 
@@ -15,6 +28,7 @@ function SubtaskInput({ todoId }: { todoId: string }) {
     if (newSubtaskText.trim()) {
       addSubtask(todoId, newSubtaskText.trim());
       setNewSubtaskText("");
+      onDone();
     }
   };
 
@@ -26,24 +40,115 @@ function SubtaskInput({ todoId }: { todoId: string }) {
         placeholder="Add a new subtask"
         onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
         className="h-8"
+        autoFocus
       />
-      <Button onClick={handleAddSubtask} size="sm">
-        Add
+      <Button
+        onClick={handleAddSubtask}
+        size="icon"
+        className="h-8 w-8 flex-shrink-0"
+      >
+        <Plus className="h-4 w-4" />
       </Button>
     </div>
   );
 }
 
+function TodoItem({ todo }: { todo: Todo }) {
+  const { toggleTodo, deleteTodo, toggleSubtask, deleteSubtask } =
+    useCounterStore();
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+
+  return (
+    <li className="p-4 rounded-lg bg-card">
+      <div className="flex items-center gap-2 py-2">
+        <Checkbox
+          checked={todo.completed}
+          onCheckedChange={() => toggleTodo(todo.id)}
+          className="scale-150 ml-2"
+        />
+        <span
+          className={`flex-grow text-2xl ml-4 font-semibold cursor-pointer ${
+            todo.completed ? "line-through text-muted-foreground" : ""
+          }`}
+          onClick={() => toggleTodo(todo.id)}
+        >
+          {todo.text}
+        </span>
+        <div className="opacity-40 hover:opacity-80">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setIsAddingSubtask(true);
+                }}
+              >
+                Add Subtask
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => deleteTodo(todo.id)}
+                className="text-red-500"
+              >
+                Delete Task
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <ul className="mt-2 space-y-2">
+        {todo.subtasks.map((subtask: Subtask) => (
+          <li key={subtask.id} className="flex items-center gap-4 ml-8">
+            <CornerDownRight className="h-4 w-4 text-muted-foreground" />
+            <Checkbox
+              checked={subtask.completed}
+              onCheckedChange={() => toggleSubtask(todo.id, subtask.id)}
+            />
+            <span
+              className={`flex-grow cursor-pointer ${
+                subtask.completed ? "line-through text-muted-foreground" : ""
+              }`}
+              onClick={() => toggleSubtask(todo.id, subtask.id)}
+            >
+              {subtask.text}
+            </span>
+            <div className="opacity-40 hover:opacity-80">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem
+                    onClick={() => deleteSubtask(todo.id, subtask.id)}
+                    className="text-red-500"
+                  >
+                    Delete Subtask
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {isAddingSubtask && (
+        <SubtaskInput
+          todoId={todo.id}
+          onDone={() => setIsAddingSubtask(false)}
+        />
+      )}
+    </li>
+  );
+}
+
 export default function TodoPage() {
-  const {
-    Todos,
-    addTodo,
-    toggleTodo,
-    deleteTodo,
-    addSubtask,
-    toggleSubtask,
-    deleteSubtask,
-  } = useCounterStore();
+  const { Todos, addTodo } = useCounterStore();
   const [newTodoText, setNewTodoText] = useState("");
 
   const handleAddTodo = () => {
@@ -59,67 +164,20 @@ export default function TodoPage() {
 
       <ul className="space-y-4">
         {Todos.map((todo) => (
-          <li key={todo.id} className="p-4 rounded-lg bg-card">
-            <div className="flex items-center gap-2 py-2">
-              <Checkbox
-                checked={todo.completed}
-                onCheckedChange={() => toggleTodo(todo.id)}
-                className="scale-150"
-              />
-              <span
-                className={`flex-grow text-2xl ml-4 font-semibold ${
-                  todo.completed ? "line-through text-muted-foreground" : ""
-                }`}
-              >
-                {todo.text}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => deleteTodo(todo.id)}
-              >
-                <TrashIcon className="h-4 w-4" />
-              </Button>
-            </div>
-            <ul className="mt-2 space-y-2">
-              {todo.subtasks.map((subtask) => (
-                <li key={subtask.id} className="flex items-center gap-2 ml-8">
-                  <CornerDownRight className="h-4 w-4 text-muted-foreground" />
-                  <Checkbox
-                    checked={subtask.completed}
-                    onCheckedChange={() => toggleSubtask(todo.id, subtask.id)}
-                  />
-                  <span
-                    className={`flex-grow ${
-                      subtask.completed
-                        ? "line-through text-muted-foreground"
-                        : ""
-                    }`}
-                  >
-                    {subtask.text}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteSubtask(todo.id, subtask.id)}
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            <SubtaskInput todoId={todo.id} />
-          </li>
+          <TodoItem key={todo.id} todo={todo} />
         ))}
       </ul>
-      <div className="flex gap-2 mt-4">
+      <div className="flex gap-2 mt-4 items-center">
         <Input
           value={newTodoText}
           onChange={(e) => setNewTodoText(e.target.value)}
           placeholder="Add a new to-do"
           onKeyDown={(e) => e.key === "Enter" && handleAddTodo()}
+          className="p-4 py-6"
         />
-        <Button onClick={handleAddTodo}>Add</Button>
+        <Button onClick={handleAddTodo} className="py-4 font-black! text-2xl">
+          <Plus />
+        </Button>
       </div>
     </div>
   );

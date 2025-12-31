@@ -2,13 +2,17 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useCounterStore } from "@/store/useStore";
-import { Button } from "@/components/ui/button";
 import ClockCircle from "../components/Home/ClockCircle";
 import ClockTime from "../components/Home/ClockTime";
-import { ConvertSecsToTimer } from "@/lib/utils";
+import { ConvertSecsToTimer, pad } from "@/lib/utils";
 import { IoIosPause } from "react-icons/io";
 import { Progress } from "@/components/ui/progress";
-
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 function PomodoroPage() {
   const { timerRunningSubjectId, toggleTimer, Subjects, pomodoroTimer } =
     useCounterStore();
@@ -25,11 +29,16 @@ function PomodoroPage() {
     (subject) => subject.id === timerRunningSubjectId
   );
 
-  let displayHours, displayMinutes, displaySeconds, circlePercent, progressBarPercent;
+  let displayHours,
+    displayMinutes,
+    displaySeconds,
+    circlePercent,
+    progressBarPercent,
+    goalWorkSecs = 0;
 
   if (runningSubject) {
     const workedSecs = runningSubject.workSecs ?? 0;
-    const goalWorkSecs = runningSubject.goalWorkSecs;
+    goalWorkSecs = runningSubject.goalWorkSecs;
     const { hours, minutes, seconds } = ConvertSecsToTimer({
       workSecs: workedSecs,
     });
@@ -51,14 +60,36 @@ function PomodoroPage() {
   }
 
   return (
-    <section className="flex flex-col justify-center items-center h-screen w-screen gap-8">
+    <section className="flex flex-col justify-center items-center h-screen w-screen gap-0">
       {runningSubject && (
         <h1 className="text-5xl font-bold">{runningSubject.name}</h1>
       )}
       <ClockCircle percent={circlePercent} size="lg" />
       {runningSubject && (
-        <div className="w-1/2">
-          <Progress value={progressBarPercent} />
+        <div className="w-1/2 mb-8">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Progress
+                value={progressBarPercent}
+                draggable={false}
+                className="h-5"
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="flex flex-col items-center">
+                <span>{`${pad(displayHours)}:${pad(displayMinutes)}:${pad(
+                  displaySeconds
+                )}`}</span>
+                <span className="border-b border-white w-full my-1"></span>
+                <span>{(() => {
+                  const { hours, minutes, seconds } = ConvertSecsToTimer({
+                    workSecs: goalWorkSecs,
+                  });
+                  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+                })()}</span>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         </div>
       )}
       <div className="flex flex-col items-center gap-8">
