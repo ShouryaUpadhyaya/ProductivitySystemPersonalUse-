@@ -1,9 +1,10 @@
 "use client";
+// add a changing avatar in the middle of the pomodoro
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useCounterStore } from "@/store/useStore";
-import ClockCircle from "../components/Home/ClockCircle";
-import ClockTime from "../components/Home/ClockTime";
+import ClockCircle from "../components/pomodoro/ClockCircle";
+import ClockTime from "../components/pomodoro/ClockTime";
 import { ConvertSecsToTimer, pad } from "@/lib/utils";
 import { IoIosPause } from "react-icons/io";
 import { Progress } from "@/components/ui/progress";
@@ -76,17 +77,19 @@ function PomodoroPage() {
               />
             </TooltipTrigger>
             <TooltipContent>
-              <div className="flex flex-col items-center">
-                <span>{`${pad(displayHours)}:${pad(displayMinutes)}:${pad(
+              <div className="flex flex-col items-center text-primary font-semibold text-lg">
+                {/* <span>{`${pad(displayHours)}:${pad(displayMinutes)}:${pad(
                   displaySeconds
                 )}`}</span>
-                <span className="border-b border-white w-full my-1"></span>
-                <span>{(() => {
-                  const { hours, minutes, seconds } = ConvertSecsToTimer({
-                    workSecs: goalWorkSecs,
-                  });
-                  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-                })()}</span>
+                <span className="border-b border-primary w-full my-1"></span> */}
+                <span>
+                  {(() => {
+                    const { hours, minutes, seconds } = ConvertSecsToTimer({
+                      workSecs: goalWorkSecs,
+                    });
+                    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+                  })()}
+                </span>
               </div>
             </TooltipContent>
           </Tooltip>

@@ -3,6 +3,15 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { IoIosPlay, IoIosPause } from "react-icons/io";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 export type Subject = {
   id: string;
@@ -17,9 +26,13 @@ export type Subject = {
 export const columns = ({
   toggleTimer,
   runningSubjectId,
+  deleteSubject,
+  handleEdit,
 }: {
   toggleTimer: (subjectId: string) => void;
   runningSubjectId: string | null;
+  deleteSubject: (subjectId: string) => void;
+  handleEdit: (subject: Subject) => void;
 }): ColumnDef<Subject>[] => [
   {
     id: "actions",
@@ -27,9 +40,29 @@ export const columns = ({
       const subject = row.original;
       const isRunning = runningSubjectId === subject.id;
       return (
-        <Button onClick={() => toggleTimer(subject.id)} variant="ghost">
-          {isRunning ? <IoIosPause /> : <IoIosPlay />}
-        </Button>
+        <div className="flex items-center">
+          <Button onClick={() => toggleTimer(subject.id)} variant="ghost">
+            {isRunning ? <IoIosPause /> : <IoIosPlay />}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleEdit(subject)}>
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => deleteSubject(subject.id)}>
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       );
     },
   },

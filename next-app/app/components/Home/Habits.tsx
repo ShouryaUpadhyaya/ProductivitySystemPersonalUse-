@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { useCounterStore } from "@/store/useStore";
 
 export type Habit = {
   id: string;
@@ -20,26 +21,8 @@ export type Habit = {
 };
 
 export default function Habits() {
-  const [habits, setHabits] = useState<Habit[]>([]);
+  const { Habits, addHabit, toggleHabit } = useCounterStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const addHabit = (name: string) => {
-    const newHabit: Habit = {
-      id: crypto.randomUUID(),
-      name,
-      completed: false,
-    };
-    setHabits((prev) => [...prev, newHabit]);
-    setIsDialogOpen(false);
-  };
-
-  const toggleHabit = (habitId: string) => {
-    setHabits((prevHabits) =>
-      prevHabits.map((habit) =>
-        habit.id === habitId ? { ...habit, completed: !habit.completed } : habit
-      )
-    );
-  };
 
   return (
     <section className="min-w-5xl px-10 py-10">
@@ -59,8 +42,13 @@ export default function Habits() {
                 const form = e.currentTarget;
                 const name = (form.elements[0] as HTMLInputElement).value;
                 if (name) {
-                  addHabit(name);
+                  addHabit({
+                    id: crypto.randomUUID(),
+                    name,
+                    completed: false,
+                  });
                   form.reset();
+                  setIsDialogOpen(false);
                 }
               }}
               className="flex flex-col gap-4"
@@ -72,8 +60,8 @@ export default function Habits() {
         </Dialog>
       </div>
       <div className="grid gap-4">
-        {habits.length > 0 ? (
-          habits.map((habit) => (
+        {Habits.length > 0 ? (
+          Habits.map((habit) => (
             <Card key={habit.id} size="sm" className="">
               <CardContent className="flex items-center justify-between p-4">
                 <span className={habit.completed ? "line-through" : ""}>

@@ -20,5 +20,15 @@ export function ConvertSecsToTimer({
   }
   return { hours, minutes, seconds, percent };
 }
-
+export function ConvertTimerToSecs({
+  hr,
+  min,
+  sec,
+}: {
+  hr: number;
+  min: number;
+  sec: number;
+}) {
+  return hr * 3600 + min * 60 + sec;
+}
 export const pad = (n: number) => String(n).padStart(2, "0");
