@@ -1,7 +1,7 @@
 {
-  "name": "Productivity_System",
+  "name": "OpenPumta",
   "version": "0.0.1",
-  "description": "",
+  "description": "yelpumta Open source alternative, works on web, mobile,pc data-driven productivity system that combines subject-wise Pomodoro focus, hubermen habit tracker system with stats section downloadable user data and ai assistant to summarise and help you reach your goals!!! ",
   "type": "module",
   "main": "index.js",
   "prepare": "husky",
@@ -21,7 +21,7 @@
     ]
   },
   "keywords": [],
-  "author": "",
+  "author": "Shourya Upadhyaya <shouryaupadhyaya8@gmail.com> (https://shouryaupadhyaya79@gmail.com)",
   "license": "ISC",
   "packageManager": "pnpm@10.19.0",
   "devDependencies": {
