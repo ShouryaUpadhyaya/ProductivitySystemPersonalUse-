@@ -6,21 +6,46 @@ import { ApiResponse } from '../utils/ApiResponse';
 
 const getAllSubject = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const idNum = Number(id);
-  const { to, from } = req.query; // ?from=...&to=...
+  const { to, from } = req.query;
 
-  if (typeof to !== 'string' || typeof from !== 'string') {
-    throw new ApiError(400, 'Invalid type of To/From');
+  const idNum = Number(id);
+  if (Number.isNaN(idNum)) {
+    throw new ApiError(400, 'Invalid user id');
   }
+
+  let fromDate: Date | undefined;
+  let toDate: Date | undefined;
+
+  if (from) {
+    if (typeof from !== 'string') {
+      throw new ApiError(400, "Invalid 'from' parameter");
+    }
+    fromDate = new Date(from);
+    if (isNaN(fromDate.getTime())) {
+      throw new ApiError(400, "Invalid 'from' date");
+    }
+  }
+
+  if (to) {
+    if (typeof to !== 'string') {
+      throw new ApiError(400, "Invalid 'to' parameter");
+    }
+    toDate = new Date(to);
+    if (isNaN(toDate.getTime())) {
+      throw new ApiError(400, "Invalid 'to' date");
+    }
+  }
+
   const subjects = await prisma.subject.findMany({
     where: {
       userId: idNum,
       createdAt: {
-        gte: new Date(from as string),
-        lte: new Date(to as string),
+        gte: fromDate,
+        lte: toDate,
       },
     },
   });
+
   return res.status(200).json(new ApiResponse(200, subjects, 'Subjects fetched successfully'));
 });
 
