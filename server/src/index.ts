@@ -7,13 +7,14 @@ import subjectRoute from './routes/subject.route';
 import todoRoute from './routes/todo.route';
 import cors from 'cors';
 import 'dotenv/config';
-import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import { errorHandler } from './middlewares/error.middleware';
 
 let app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -21,16 +22,7 @@ app.use(
   }),
 );
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'secret',
-    resave: false,
-    saveUninitialized: false,
-  }),
-);
-
 app.use(passport.initialize());
-app.use(passport.session());
 
 async function seed() {
   const user = await prisma.user.findUnique({ where: { id: 1 } });

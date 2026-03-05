@@ -1,6 +1,7 @@
 import { Express } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import { prisma } from '../../prisma/prismaClient';
 import { ApiError } from '../utils/ApiError';
 import 'dotenv/config';
@@ -43,19 +44,36 @@ passport.use(
   ),
 );
 
-passport.serializeUser((user: Express.User, done) => {
-  done(null, (user as { id: number }).id);
-});
-
-passport.deserializeUser(async (id: number, done) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id },
-    });
-    done(null, user);
-  } catch (error) {
-    done(error);
+const cookieExtractor = (req: any) => {
+  let token = null;
+  if (req && req.cookies) {
+    token = req.cookies['token'];
   }
-});
+  return token || ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+};
+
+passport.use(
+  new JwtStrategy(
+    {
+      jwtFromRequest: cookieExtractor,
+      secretOrKey: process.env.JWT_SECRET || 'secret',
+    },
+    async (jwtPayload, done) => {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: jwtPayload.id },
+        });
+
+        if (user) {
+          return done(null, user);
+        }
+
+        return done(null, false);
+      } catch (error) {
+        return done(error, false);
+      }
+    },
+  ),
+);
 
 export default passport;

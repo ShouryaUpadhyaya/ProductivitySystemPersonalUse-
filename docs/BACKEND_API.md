@@ -8,7 +8,7 @@ This document provides an overview of the backend API for openPumta.
 
 ## Authentication
 
-The API uses Google OAuth2 for authentication. Sessions are managed via cookies (`connect.sid`).
+The API uses Google OAuth2 for authentication. Authentication is managed via JWT stored in a `token` cookie.
 
 - **Login:** `GET /auth/google` (Redirects to Google)
 - **Check Auth Status:** `GET /auth/user` (Returns user info if authenticated)
