@@ -68,14 +68,14 @@ const ClockDialogBox = (props: Props) => {
             onSubmit={(e) => {
               e.preventDefault();
 
-              const form = e.currentTarget;
-              const workHr = Number((form.elements[0] as HTMLInputElement).value) || 0;
-              const workMin = Number((form.elements[1] as HTMLInputElement).value) || 0;
-              const workSec = Number((form.elements[2] as HTMLInputElement).value) || 0;
+              const formData = new FormData(e.currentTarget);
+              const workHr = Number(formData.get('workHr')) || 0;
+              const workMin = Number(formData.get('workMin')) || 0;
+              const workSec = Number(formData.get('workSec')) || 0;
 
-              const breakHr = Number((form.elements[3] as HTMLInputElement).value) || 0;
-              const breakMin = Number((form.elements[4] as HTMLInputElement).value) || 0;
-              const breakSec = Number((form.elements[5] as HTMLInputElement).value) || 0;
+              const breakHr = Number(formData.get('breakHr')) || 0;
+              const breakMin = Number(formData.get('breakMin')) || 0;
+              const breakSec = Number(formData.get('breakSec')) || 0;
 
               const newWorkSecs = ConvertTimerToSecs({
                 hr: workHr,
@@ -105,9 +105,10 @@ const ClockDialogBox = (props: Props) => {
               <div className="grid gap-3">
                 <Label htmlFor="work-time">Work Duration</Label>
                 <div className="flex items-center gap-2">
-                  <Input placeholder="hh" type="number" min={0} defaultValue={workHours} />
+                  <Input name="workHr" placeholder="hh" type="number" min={0} defaultValue={workHours} />
                   <span>:</span>
                   <Input
+                    name="workMin"
                     placeholder="mm"
                     type="number"
                     min={0}
@@ -116,6 +117,7 @@ const ClockDialogBox = (props: Props) => {
                   />
                   <span>:</span>
                   <Input
+                    name="workSec"
                     placeholder="ss"
                     defaultValue={workSeconds}
                     min={0}
@@ -127,9 +129,10 @@ const ClockDialogBox = (props: Props) => {
               <div className="grid gap-3">
                 <Label htmlFor="break-time">Break Duration</Label>
                 <div className="flex items-center gap-2">
-                  <Input placeholder="hh" type="number" min={0} defaultValue={breakHours} />
+                  <Input name="breakHr" placeholder="hh" type="number" min={0} defaultValue={breakHours} />
                   <span>:</span>
                   <Input
+                    name="breakMin"
                     placeholder="mm"
                     type="number"
                     min={0}
@@ -138,6 +141,7 @@ const ClockDialogBox = (props: Props) => {
                   />
                   <span>:</span>
                   <Input
+                    name="breakSec"
                     placeholder="ss"
                     defaultValue={breakSeconds}
                     min={0}

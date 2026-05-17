@@ -25,6 +25,7 @@ function PomodoroPage() {
     workDuration, 
     breakDuration, 
     breakElapsedSeconds, 
+    resetThreshold,
     tickBreak, 
     togglePhase, 
     resetBreak 
@@ -43,7 +44,7 @@ function PomodoroPage() {
     return () => clearInterval(interval);
   }, [timerRunningSubjectId, phase, tick, tickBreak]);
 
-  const handlePauseClick = async () => {
+  const stopTimer = async () => {
     if (timerRunningSubjectId) {
       try {
         await endTimer.mutateAsync(timerRunningSubjectId);
@@ -52,6 +53,10 @@ function PomodoroPage() {
       }
       stopLocalTimer();
     }
+  };
+
+  const handlePauseAndExit = async () => {
+    await stopTimer();
     router.push('/');
   };
 
@@ -69,6 +74,7 @@ function PomodoroPage() {
   let sessionSecs = 0;
   let totalWorkedSecs = 0;
   let goalWorkSecs = 0;
+  let continuousWorkSecs = 0;
 
   if (runningSubject) {
     const activeLog = runningSubject.subjectLogs?.find((log) => !log.endedAt);
@@ -81,6 +87,31 @@ function PomodoroPage() {
 
     totalWorkedSecs = pastLogsDuration + sessionSecs;
     goalWorkSecs = runningSubject.goalWorkSecs || 0;
+
+    // Calculate continuous work time for Pomodoro reset logic
+    const sortedLogs = [...(runningSubject.subjectLogs || [])].sort((a, b) => 
+      new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+    );
+
+    let continuous = 0;
+    for (let i = 0; i < sortedLogs.length; i++) {
+      const current = sortedLogs[i];
+      let duration = current.duration || 0;
+      if (!current.endedAt) {
+        duration = Math.floor((new Date().getTime() - new Date(current.startedAt).getTime()) / 1000);
+      }
+
+      continuous += duration;
+
+      const nextOldest = sortedLogs[i+1];
+      if (nextOldest && nextOldest.endedAt) {
+        const gap = (new Date(current.startedAt).getTime() - new Date(nextOldest.endedAt).getTime()) / 1000;
+        if (gap > resetThreshold) {
+          break; // Gap too large, end of continuous session
+        }
+      }
+    }
+    continuousWorkSecs = continuous;
   }
 
   // Phase & Mode Logic
@@ -88,18 +119,20 @@ function PomodoroPage() {
   let circlePercent = 0;
   let bottomText = "";
   let subText = "";
+  let circleColor = "var(--primary)";
 
   if (mode === 'POMODORO') {
     if (phase === 'WORK') {
-      const remainingWork = Math.max(0, workDuration - (totalWorkedSecs % workDuration));
+      const remainingWork = Math.max(0, workDuration - continuousWorkSecs);
       displayTime = ConvertSecsToTimer({ workSecs: remainingWork });
-      circlePercent = ((totalWorkedSecs % workDuration) / workDuration) * 100;
+      circlePercent = (continuousWorkSecs / workDuration) * 100;
       bottomText = "WORK PHASE";
       subText = runningSubject ? `Session: ${pad(ConvertSecsToTimer({workSecs: sessionSecs}).minutes)}:${pad(ConvertSecsToTimer({workSecs: sessionSecs}).seconds)}` : "Select a subject to start";
+      circleColor = "var(--primary)";
       
       // Auto-transition to Break
       if (remainingWork === 0 && timerRunningSubjectId) {
-        handlePauseClick();
+        stopTimer(); // Just stop the timer, don't exit
         togglePhase();
       }
     } else {
@@ -108,6 +141,7 @@ function PomodoroPage() {
       circlePercent = (breakElapsedSeconds / breakDuration) * 100;
       bottomText = "BREAK PHASE";
       subText = "Time to rest!";
+      circleColor = "#22c55e"; // Green for break
 
       // Auto-transition to Work
       if (remainingBreak === 0) {
@@ -128,7 +162,7 @@ function PomodoroPage() {
     <section className="flex flex-col justify-center items-center h-screen w-screen gap-0">
       {runningSubject && <h1 className="text-5xl font-bold mb-4">{runningSubject.name}</h1>}
       
-      <ClockCircle percent={circlePercent} size="lg">
+      <ClockCircle percent={circlePercent} size="lg" color={circleColor}>
         <div className="flex flex-col items-center">
           <div className="text-7xl font-bold text-primary mb-2">
             {pad(displayTime.hours)}:{pad(displayTime.minutes)}:{pad(displayTime.seconds)}
@@ -169,7 +203,7 @@ function PomodoroPage() {
         )}
         
         <Button 
-          onClick={handlePauseClick} 
+          onClick={handlePauseAndExit} 
           variant="secondary" 
           className="rounded-full w-24 h-24 shadow-lg hover:scale-105 transition-transform"
         >
