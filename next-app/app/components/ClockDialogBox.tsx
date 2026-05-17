@@ -2,6 +2,7 @@ import React from 'react';
 import { usePomodoroStore } from '@/store/usePomodoroStore';
 import { ConvertSecsToTimer, ConvertTimerToSecs } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+
 import {
   Dialog,
   DialogClose,
@@ -15,6 +16,29 @@ import {
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Switch } from '@/components/ui/switch';
+
+export function TimerSwitchDescription() {
+  const { timerMode, changeTimerMode } = usePomodoroStore();
+  return (
+    <Field orientation="horizontal" className="max-w-sm">
+      <FieldContent>
+        <FieldLabel htmlFor="switch-focus-mode">Timer mode</FieldLabel>
+        <FieldDescription>
+          when on you will be seeing a timer showing total time studied per session
+        </FieldDescription>
+      </FieldContent>
+      <Switch
+        id="switch-focus-mode"
+        checked={timerMode}
+        onCheckedChange={(checked) => changeTimerMode({ timermode: checked })}
+      />
+    </Field>
+  );
+}
+
 type Props = { child: React.ReactNode };
 
 const ClockDialogBox = (props: Props) => {
@@ -38,7 +62,7 @@ const ClockDialogBox = (props: Props) => {
         <DialogTrigger>
           <div>{props.child}</div>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] lg:px-10 lg:py-14">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -71,12 +95,15 @@ const ClockDialogBox = (props: Props) => {
             }}
           >
             <DialogHeader>
-              <DialogTitle>Pomodoro Timer</DialogTitle>
-              <DialogDescription>
+              <DialogTitle>
+                <h1 className="text-2xl font-bold mb-4">Timer settings</h1>
+              </DialogTitle>
+              <TimerSwitchDescription />
+              {/* <DialogDescription>
                 Make changes to your pomodoro timer here. Click save when you&apos;re done.
-              </DialogDescription>
+              </DialogDescription> */}
             </DialogHeader>
-            <div className="grid gap-4">
+            <div className="grid gap-4 mt-4">
               <div className="grid gap-3">
                 <Label htmlFor="work-time">Work Timer</Label>
                 <div className="flex items-center gap-2">

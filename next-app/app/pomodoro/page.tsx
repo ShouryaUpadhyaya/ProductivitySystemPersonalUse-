@@ -20,7 +20,7 @@ function PomodoroPage() {
   const { timerRunningSubjectId, stopLocalTimer, activeSeconds, tick } = useSubjectTimerStore();
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const { endTimer } = useSubjectTimer();
-  const { pomodoroTimer } = usePomodoroStore();
+  const { pomodoroTimer, timerMode } = usePomodoroStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -60,33 +60,33 @@ function PomodoroPage() {
     displaySeconds,
     circlePercent,
     progressBarPercent,
-    goalWorkSecs = 0;
+    goalWorkSecs = 0,
+    sessionSecs = 0,
+    totalWorkedSecs = 0;
 
   if (runningSubject) {
     const activeLog = runningSubject.subjectLogs?.find((log) => !log.endedAt);
     const pastLogsDuration =
       runningSubject.subjectLogs?.reduce((acc, log) => acc + (log.duration || 0), 0) || 0;
 
-    let workedSecs = pastLogsDuration;
-    if (activeLog) {
-      workedSecs += Math.floor(
-        (new Date().getTime() - new Date(activeLog.startedAt).getTime()) / 1000,
-      );
-    } else {
-      workedSecs += activeSeconds;
-    }
+    sessionSecs = activeLog
+      ? Math.floor((new Date().getTime() - new Date(activeLog.startedAt).getTime()) / 1000)
+      : activeSeconds;
+
+    totalWorkedSecs = pastLogsDuration + sessionSecs;
 
     goalWorkSecs = runningSubject.goalWorkSecs || 0;
 
+    const pomodoroRemainingSecs = pomodoroTimer - (totalWorkedSecs % pomodoroTimer);
     const { hours, minutes, seconds } = ConvertSecsToTimer({
-      workSecs: workedSecs,
+      workSecs: pomodoroRemainingSecs,
     });
     displayHours = hours;
     displayMinutes = minutes;
     displaySeconds = seconds;
 
-    circlePercent = ((workedSecs % pomodoroTimer) / pomodoroTimer) * 100;
-    progressBarPercent = goalWorkSecs ? (workedSecs / goalWorkSecs) * 100 : 0;
+    circlePercent = ((totalWorkedSecs % pomodoroTimer) / pomodoroTimer) * 100;
+    progressBarPercent = goalWorkSecs ? (totalWorkedSecs / goalWorkSecs) * 100 : 0;
   } else {
     const { hours, minutes, seconds } = ConvertSecsToTimer({
       workSecs: pomodoroTimer,
@@ -101,7 +101,28 @@ function PomodoroPage() {
   return (
     <section className="flex flex-col justify-center items-center h-screen w-screen gap-0">
       {runningSubject && <h1 className="text-5xl font-bold">{runningSubject.name}</h1>}
-      <ClockCircle percent={circlePercent} size="lg" />
+      <ClockCircle percent={circlePercent} size="lg">
+        {timerMode ? (
+          <div className="flex flex-col items-center">
+            <div className="text-7xl font-bold text-primary mb-2">
+              {(() => {
+                const { hours, minutes, seconds } = ConvertSecsToTimer({ workSecs: sessionSecs });
+                return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+              })()}
+            </div>
+            <div className="text-2xl font-semibold text-muted-foreground">
+              {(() => {
+                const { hours, minutes, seconds } = ConvertSecsToTimer({
+                  workSecs: totalWorkedSecs,
+                });
+                return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+              })()}
+            </div>
+          </div>
+        ) : (
+          <ClockTime hours={displayHours} minutes={displayMinutes} seconds={displaySeconds} />
+        )}
+      </ClockCircle>
       {runningSubject && (
         <div className="w-1/2 mb-8">
           <Tooltip>
@@ -124,7 +145,6 @@ function PomodoroPage() {
         </div>
       )}
       <div className="flex flex-col items-center gap-8">
-        <ClockTime hours={displayHours} minutes={displayMinutes} seconds={displaySeconds} />
         <Button onClick={handlePauseClick} variant="secondary" className="scale-150 ">
           <IoIosPause size={48} />
         </Button>

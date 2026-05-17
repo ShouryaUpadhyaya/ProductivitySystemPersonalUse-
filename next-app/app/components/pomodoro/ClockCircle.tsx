@@ -4,9 +4,10 @@ import React from 'react';
 type ClockCircleProps = {
   size: 'sm' | 'lg';
   percent: number;
+  children?: React.ReactNode;
 };
 
-function ClockCircle({ percent, size }: ClockCircleProps) {
+function ClockCircle({ percent, size, children }: ClockCircleProps) {
   return (
     <div
       className={`relative my-10 mx-5 flex items-center justify-center ${
@@ -20,6 +21,9 @@ function ClockCircle({ percent, size }: ClockCircleProps) {
           transition: 'background 0.5s ease-out',
         }}
       />
+      <div className="absolute h-[92%] w-[92%] bg-background rounded-full flex items-center justify-center">
+        {children}
+      </div>
     </div>
   );
 }
