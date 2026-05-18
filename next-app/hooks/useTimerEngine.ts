@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTimerStore } from '@/store/useTimerStore';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -15,104 +15,79 @@ export function useTimerEngine() {
       running: s.running,
       phase: s.phase,
       mode: s.mode,
-      startTimestamp: s.startTimestamp,
-      accumulatedMs: s.accumulatedMs,
-      settings: s.settings,
-      completePhase: s.completePhase,
+      phaseStartedAt: s.phaseStartedAt,
+      durationMs: s.durationMs,
       activeSubjectId: s.activeSubjectId,
       completedPomodoros: s.completedPomodoros,
+      settings: s.settings,
+      endWork: s.endWork,
+      completeBreak: s.completeBreak,
     })),
   );
 
-  const {
-    running,
-    phase,
-    mode,
-    startTimestamp,
-    accumulatedMs,
-    settings,
-    completePhase,
-    activeSubjectId,
-    completedPomodoros,
-  } = store;
+  const { running, phase, mode, phaseStartedAt, durationMs, endWork, completeBreak } = store;
 
-  const { workDuration, shortBreakDuration, longBreakDuration } = settings;
-
-  // localNow serves as a ticker to force re-renders for the live time display
   const [localNow, setLocalNow] = useState(() => Date.now());
 
-  const targetDuration = useMemo(() => {
-    switch (phase) {
-      case 'work':
-        return workDuration;
-      case 'shortBreak':
-        return shortBreakDuration;
-      case 'longBreak':
-        return longBreakDuration;
-      default:
-        return 0;
-    }
-  }, [phase, workDuration, shortBreakDuration, longBreakDuration]);
-
   const elapsedMs = useMemo(() => {
-    if (running && startTimestamp) {
-      return accumulatedMs + (localNow - startTimestamp);
+    if (running && phaseStartedAt) {
+      return Math.max(0, localNow - phaseStartedAt);
     }
-    return accumulatedMs;
-  }, [running, startTimestamp, accumulatedMs, localNow]);
+    return 0;
+  }, [running, phaseStartedAt, localNow]);
 
-  useEffect(() => {
-    if (!running || !hasHydrated) {
-      return;
+  const progress = useMemo(() => {
+    if (mode === 'pomodoro' && durationMs > 0) {
+      return Math.min(100, (elapsedMs / durationMs) * 100);
     }
+    return 0;
+  }, [mode, durationMs, elapsedMs]);
+
+  const remainingMs = useMemo(() => {
+    if (mode === 'pomodoro') {
+      return Math.max(0, durationMs - elapsedMs);
+    }
+    return elapsedMs;
+  }, [mode, durationMs, elapsedMs]);
+
+  const handleTransition = useCallback(() => {
+    if (phase === 'work') {
+      endWork(false); // Auto-transition
+    } else if (phase === 'shortBreak' || phase === 'longBreak') {
+      completeBreak();
+    }
+  }, [phase, endWork, completeBreak]);
+
+  // Main tick loop
+  useEffect(() => {
+    if (!running || !hasHydrated) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
       setLocalNow(now);
 
-      // Pomodoro Auto-Transition Logic
-      if (mode === 'pomodoro' && phase !== 'idle' && phase !== 'paused') {
-        const currentElapsed = accumulatedMs + (now - (startTimestamp || now));
-        if (currentElapsed >= targetDuration) {
-          completePhase();
+      // Transition Logic
+      if (mode === 'pomodoro' && phase !== 'idle') {
+        const currentElapsed = now - (phaseStartedAt || now);
+        if (currentElapsed >= durationMs) {
+          handleTransition();
         }
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [
-    running,
-    mode,
-    phase,
-    startTimestamp,
-    accumulatedMs,
-    targetDuration,
-    completePhase,
-    hasHydrated,
-  ]);
+  }, [running, mode, phase, phaseStartedAt, durationMs, handleTransition, hasHydrated]);
 
-  const progress =
-    mode === 'pomodoro' && targetDuration > 0
-      ? Math.min(100, (elapsedMs / targetDuration) * 100)
-      : 0;
+  // Check for missed transitions on hydration or visibility change
+  useEffect(() => {
+    if (!hasHydrated || !running || mode !== 'pomodoro' || phase === 'idle') return;
 
-  const remainingMs = mode === 'pomodoro' ? Math.max(0, targetDuration - elapsedMs) : elapsedMs;
-
-  // During SSR and before hydration, we return stable default-ish values
-  // based on the initial store state to minimize mismatches.
-  if (!hasHydrated) {
-    return {
-      elapsedMs: 0,
-      remainingMs: mode === 'pomodoro' ? workDuration : 0,
-      progress: 0,
-      running: false,
-      phase: 'idle',
-      mode: 'pomodoro',
-      activeSubjectId: null,
-      completedPomodoros: 0,
-      settings: settings,
-    };
-  }
+    const now = Date.now();
+    const currentElapsed = now - (phaseStartedAt || now);
+    if (currentElapsed >= durationMs) {
+      handleTransition();
+    }
+  }, [hasHydrated, running, mode, phase, phaseStartedAt, durationMs, handleTransition]);
 
   return {
     elapsedMs,
@@ -121,8 +96,8 @@ export function useTimerEngine() {
     running,
     phase,
     mode,
-    activeSubjectId,
-    completedPomodoros,
-    settings,
+    activeSubjectId: store.activeSubjectId,
+    completedPomodoros: store.completedPomodoros,
+    settings: store.settings,
   };
 }

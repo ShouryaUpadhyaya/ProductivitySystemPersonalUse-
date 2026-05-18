@@ -100,6 +100,7 @@ const startSubjectLog = asyncHandler(async (req: Request, res: Response) => {
 
 const endSubjectLog = asyncHandler(async (req: Request, res: Response) => {
   const { subjectId } = req.params;
+  const { endedAt } = req.body;
   const subjectIdNum = Number(subjectId);
   const activeLog = await prisma.subjectLog.findFirst({
     where: {
@@ -113,7 +114,7 @@ const endSubjectLog = asyncHandler(async (req: Request, res: Response) => {
   const updatedLog = await prisma.subjectLog.update({
     where: { id: activeLog.id },
     data: {
-      endedAt: new Date(),
+      endedAt: endedAt ? new Date(endedAt) : new Date(),
     },
     include: {
       subject: {

@@ -6,67 +6,47 @@ import { useTimerEngine } from '@/hooks/useTimerEngine';
 import ClockCircle from '../components/pomodoro/ClockCircle';
 import { ConvertSecsToTimer, pad } from '@/lib/utils';
 import {
-  IoIosPause,
   IoIosPlay,
   IoIosRefresh,
   IoIosSkipForward,
   IoIosArrowBack,
+  IoIosSquare,
 } from 'react-icons/io';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSubjects, useSubjectTimer } from '@/hooks/useSubjects';
+import { useSubjects } from '@/hooks/useSubjects';
 
 function PomodoroPage() {
   const { data: Subjects = [], isLoading } = useSubjects();
-  const { startTimer, endTimer } = useSubjectTimer();
   const store = useTimerStore();
-  const {
-    remainingMs,
-    elapsedMs,
-    progress,
-    phase,
-    mode,
-    running,
-    activeSubjectId,
-    completedPomodoros,
-  } = useTimerEngine();
+  const { remainingMs, elapsedMs, progress, phase, mode, activeSubjectId, completedPomodoros } =
+    useTimerEngine();
   const router = useRouter();
 
   const runningSubject = Subjects.find((subject) => subject.id === activeSubjectId);
 
-  const handleToggleTimer = async () => {
-    if (running) {
-      if (activeSubjectId && phase === 'work') {
-        try {
-          await endTimer.mutateAsync(activeSubjectId);
-        } catch (error) {
-          console.error('Failed to end timer:', error);
-        }
-      }
-      store.pause();
-    } else {
-      if (!activeSubjectId) {
-        store.resume();
-      } else {
-        if (phase === 'work') {
-          try {
-            await startTimer.mutateAsync(activeSubjectId);
-          } catch (error) {
-            console.error('Failed to start timer:', error);
-          }
-        }
-        store.resume();
+  const handleMainAction = async () => {
+    if (phase === 'work') {
+      await store.endWork(true);
+    } else if (phase === 'idle') {
+      if (activeSubjectId) {
+        await store.startWork(activeSubjectId);
       }
     }
   };
 
-  const handleReset = () => {
-    store.reset();
+  const handleSkip = () => {
+    if (phase === 'shortBreak' || phase === 'longBreak') {
+      store.skipBreak();
+    }
   };
 
-  const handleSkip = () => {
-    store.skip();
+  const handleReset = () => {
+    if (confirm('Are you sure you want to reset the entire cycle?')) {
+      store.reset();
+      router.push('/');
+    }
   };
 
   const handleBack = () => {
@@ -84,7 +64,7 @@ function PomodoroPage() {
   const displayTime = ConvertSecsToTimer({ workSecs: Math.floor(remainingMs / 1000) });
 
   let totalWorkedSecs = 0;
-  let totalBreakSecs = 0;
+  const totalBreakSecs = 0;
   let goalWorkSecs = 0;
   let goalBreakSecs = 0;
 
@@ -99,17 +79,6 @@ function PomodoroPage() {
     totalWorkedSecs =
       logsToday.reduce((acc, log) => acc + (log.duration || 0), 0) +
       (phase === 'work' ? Math.floor(elapsedMs / 1000) : 0);
-
-    for (let i = 0; i < logsToday.length - 1; i++) {
-      const currentEnd = new Date(logsToday[i].endedAt || logsToday[i].startedAt).getTime();
-      const nextStart = new Date(logsToday[i + 1].startedAt).getTime();
-      if (nextStart > currentEnd) {
-        totalBreakSecs += (nextStart - currentEnd) / 1000;
-      }
-    }
-    if ((phase === 'shortBreak' || phase === 'longBreak') && running) {
-      totalBreakSecs += Math.floor(elapsedMs / 1000);
-    }
 
     goalWorkSecs = runningSubject.goalWorkSecs || 0;
     const breakRatio = store.settings.shortBreakDuration / store.settings.workDuration;
@@ -135,12 +104,12 @@ function PomodoroPage() {
       case 'longBreak':
         return store.longBreakColor;
       default:
-        return store.workColor;
+        return 'var(--muted-foreground)';
     }
   };
 
   const getPhaseLabel = () => {
-    if (mode === 'stopwatch') return 'DEEP WORK';
+    if (mode === 'stopwatch') return 'STOPWATCH';
     switch (phase) {
       case 'work':
         return 'WORK PHASE';
@@ -148,8 +117,8 @@ function PomodoroPage() {
         return 'SHORT BREAK';
       case 'longBreak':
         return 'LONG BREAK';
-      case 'paused':
-        return 'PAUSED';
+      case 'idle':
+        return 'READY';
       default:
         return 'IDLE';
     }
@@ -209,21 +178,25 @@ function PomodoroPage() {
       )}
 
       <div className="flex items-center gap-8">
-        {(phase !== 'work' || !running) && (
-          <Button onClick={handleReset} variant="outline" className="rounded-full w-14 h-14">
-            <IoIosRefresh size={24} />
-          </Button>
-        )}
-
-        <Button
-          onClick={handleToggleTimer}
-          variant="secondary"
-          className="rounded-full w-24 h-24 shadow-lg hover:scale-105 transition-all"
-        >
-          {running ? <IoIosPause size={48} /> : <IoIosPlay size={48} />}
+        <Button onClick={handleReset} variant="outline" className="rounded-full w-14 h-14">
+          <IoIosRefresh size={24} />
         </Button>
 
-        {mode === 'pomodoro' && phase !== 'work' && (
+        {phase === 'work' || phase === 'idle' ? (
+          <Button
+            onClick={handleMainAction}
+            variant="secondary"
+            className="rounded-full w-24 h-24 shadow-lg hover:scale-105 transition-all"
+          >
+            {phase === 'work' ? <IoIosSquare size={40} /> : <IoIosPlay size={48} />}
+          </Button>
+        ) : (
+          <div className="w-24 h-24 flex items-center justify-center">
+            {/* No main action during break other than skip */}
+          </div>
+        )}
+
+        {isBreak && (
           <Button onClick={handleSkip} variant="outline" className="rounded-full w-14 h-14">
             <IoIosSkipForward size={24} />
           </Button>

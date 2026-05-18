@@ -2,8 +2,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import api from '@/lib/api';
 
-export type TimerPhase = 'work' | 'shortBreak' | 'longBreak' | 'idle' | 'paused';
+export type TimerPhase = 'work' | 'shortBreak' | 'longBreak' | 'idle';
 export type TimerMode = 'pomodoro' | 'stopwatch';
 
 interface TimerSettings {
@@ -15,14 +16,17 @@ interface TimerSettings {
 }
 
 interface TimerState {
-  running: boolean;
+  // Core State
   phase: TimerPhase;
+  running: boolean;
   mode: TimerMode;
-  startTimestamp: number | null;
-  accumulatedMs: number;
-  settings: TimerSettings;
   activeSubjectId: number | null;
+  phaseStartedAt: number | null;
+  durationMs: number;
   completedPomodoros: number;
+
+  // Settings & UI
+  settings: TimerSettings;
   showProgressBar: boolean;
   workColor: string;
   shortBreakColor: string;
@@ -33,26 +37,25 @@ interface TimerState {
   setShowProgressBar: (show: boolean) => void;
   setSettings: (settings: Partial<TimerSettings>) => void;
   setColors: (work: string, short: string, long: string) => void;
-  pause: () => void;
-  resume: () => void;
-  skip: () => void;
+
+  startWork: (subjectId: number) => Promise<void>;
+  endWork: (manual?: boolean) => Promise<void>;
+  completeBreak: () => void;
+  skipBreak: () => void;
   reset: () => void;
-  toggleSubject: (
-    subjectId: number,
-    startApi: (id: number) => Promise<void | unknown>,
-    endApi: (id: number) => Promise<void | unknown>,
-  ) => Promise<void>;
-  completePhase: () => void;
 }
 
 export const useTimerStore = create<TimerState>()(
   persist(
     (set, get) => ({
-      running: false,
       phase: 'idle',
+      running: false,
       mode: 'pomodoro',
-      startTimestamp: null,
-      accumulatedMs: 0,
+      activeSubjectId: null,
+      phaseStartedAt: null,
+      durationMs: 0,
+      completedPomodoros: 0,
+
       settings: {
         workDuration: 25 * 60 * 1000,
         shortBreakDuration: 5 * 60 * 1000,
@@ -60,8 +63,6 @@ export const useTimerStore = create<TimerState>()(
         autoStartBreaks: true,
         autoStartWork: true,
       },
-      activeSubjectId: null,
-      completedPomodoros: 0,
       showProgressBar: true,
       workColor: '#f97316',
       shortBreakColor: '#22c55e',
@@ -74,104 +75,116 @@ export const useTimerStore = create<TimerState>()(
       setColors: (work, short, long) =>
         set({ workColor: work, shortBreakColor: short, longBreakColor: long }),
 
-      pause: () => {
-        const { running, startTimestamp, accumulatedMs } = get();
-        if (running && startTimestamp) {
+      startWork: async (subjectId) => {
+        const state = get();
+
+        // 1. If already in work for THIS subject, just ensure it's running and return
+        if (state.phase === 'work' && state.activeSubjectId === subjectId && state.running) {
+          return;
+        }
+
+        // 2. If switching subjects or currently in work, end the previous session
+        if (state.phase === 'work' && state.activeSubjectId) {
+          try {
+            await api.patch(`/api/subject/${state.activeSubjectId}/endTimer`, {
+              endedAt: new Date(),
+            });
+          } catch (e) {
+            console.error('Failed to end previous timer:', e);
+          }
+        }
+
+        // 3. Start new backend log
+        try {
+          await api.patch(`/api/subject/${subjectId}/startTimer`);
+        } catch (e) {
+          console.error('Failed to start new timer:', e);
+          return;
+        }
+
+        // 4. Update local state
+        set({
+          activeSubjectId: subjectId,
+          phase: 'work',
+          running: true,
+          phaseStartedAt: Date.now(),
+          durationMs: state.settings.workDuration,
+        });
+      },
+
+      endWork: async (manual = true) => {
+        const state = get();
+        if (state.phase !== 'work' || !state.activeSubjectId) return;
+
+        // 1. Finalize backend log
+        const targetEnd = manual
+          ? Date.now()
+          : (state.phaseStartedAt || Date.now()) + state.durationMs;
+
+        try {
+          await api.patch(`/api/subject/${state.activeSubjectId}/endTimer`, {
+            endedAt: new Date(targetEnd),
+          });
+        } catch (e) {
+          console.error('Failed to end timer:', e);
+        }
+
+        // 2. Determine next phase
+        if (state.mode === 'stopwatch') {
           set({
+            phase: 'idle',
             running: false,
-            accumulatedMs: accumulatedMs + (Date.now() - startTimestamp),
-            startTimestamp: null,
+            phaseStartedAt: null,
+            durationMs: 0,
           });
+          return;
+        }
+
+        const nextCompleted = state.completedPomodoros + 1;
+        const isLongBreak = nextCompleted % 4 === 0;
+        const nextPhase = isLongBreak ? 'longBreak' : 'shortBreak';
+        const breakDuration = isLongBreak
+          ? state.settings.longBreakDuration
+          : state.settings.shortBreakDuration;
+
+        set({
+          completedPomodoros: nextCompleted,
+          phase: nextPhase,
+          running: true, // Breaks are automatic
+          phaseStartedAt: Date.now(),
+          durationMs: breakDuration,
+        });
+      },
+
+      completeBreak: () => {
+        const state = get();
+        if (state.phase === 'work' || state.phase === 'idle') return;
+
+        if (state.settings.autoStartWork && state.activeSubjectId) {
+          get().startWork(state.activeSubjectId);
         } else {
-          set({ running: false });
-        }
-      },
-
-      resume: () => {
-        const { running, phase } = get();
-        if (!running) {
           set({
-            running: true,
-            startTimestamp: Date.now(),
-            phase: phase === 'idle' || phase === 'paused' ? 'work' : phase,
+            phase: 'idle',
+            running: false,
+            phaseStartedAt: null,
+            durationMs: 0,
           });
         }
       },
 
-      skip: () => {
-        get().completePhase();
+      skipBreak: () => {
+        get().completeBreak();
       },
 
       reset: () => {
         set({
-          running: false,
           phase: 'idle',
-          startTimestamp: null,
-          accumulatedMs: 0,
-          completedPomodoros: 0,
+          running: false,
           activeSubjectId: null,
+          phaseStartedAt: null,
+          durationMs: 0,
+          completedPomodoros: 0,
         });
-      },
-
-      toggleSubject: async (subjectId, startApi, endApi) => {
-        const state = get();
-        const isCurrent = state.activeSubjectId === subjectId;
-
-        if (isCurrent) {
-          if (state.running) {
-            if (state.phase === 'work') {
-              await endApi(subjectId);
-            }
-            state.pause();
-          } else {
-            if (state.phase === 'work') {
-              await startApi(subjectId);
-            }
-            state.resume();
-          }
-        } else {
-          // Switching subjects
-          if (state.activeSubjectId && state.running && state.phase === 'work') {
-            await endApi(state.activeSubjectId);
-          }
-
-          set({
-            activeSubjectId: subjectId,
-            phase: 'work',
-            running: true,
-            startTimestamp: Date.now(),
-            accumulatedMs: 0,
-          });
-
-          await startApi(subjectId);
-        }
-      },
-
-      completePhase: () => {
-        const { phase, settings, completedPomodoros, mode } = get();
-
-        if (mode === 'stopwatch') return;
-
-        if (phase === 'work') {
-          const nextCompleted = completedPomodoros + 1;
-          const nextPhase = nextCompleted % 4 === 0 ? 'longBreak' : 'shortBreak';
-
-          set({
-            completedPomodoros: nextCompleted,
-            phase: nextPhase,
-            startTimestamp: settings.autoStartBreaks ? Date.now() : null,
-            running: settings.autoStartBreaks,
-            accumulatedMs: 0,
-          });
-        } else {
-          // Transitions from breaks (short or long) back to work
-          set({
-            phase: 'work',
-            startTimestamp: settings.autoStartWork ? Date.now() : null,
-            running: settings.autoStartWork,
-            accumulatedMs: 0,
-          });
-        }
       },
     }),
     {
