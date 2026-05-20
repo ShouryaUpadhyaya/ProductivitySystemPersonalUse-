@@ -13,7 +13,7 @@ import {
   Settings,
   Menu,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLayoutStore } from '@/store/useLayoutStore';
 
@@ -26,7 +26,7 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export default function Navigation() {
+export default function Navigation({ mounted }: { mounted: boolean }) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebar } = useLayoutStore();
   const { user, fetchUser, loading } = useAuthStore();
@@ -34,6 +34,12 @@ export default function Navigation() {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  if (!mounted) {
+    return (
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 border-r bg-card/50 backdrop-blur-xl z-40 p-4 w-64" />
+    );
+  }
 
   return (
     <>
