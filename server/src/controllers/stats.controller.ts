@@ -24,7 +24,7 @@ const getDailyTimeline = asyncHandler(async (req: Request, res: Response) => {
   // Fetch Subject Logs
   const subjectLogs = await prisma.subjectLog.findMany({
     where: {
-      subject: { userId: userIdNum },
+      subject: { userId: userIdNum, deleted: false },
       startedAt: { gte: startOfDay, lte: endOfDay },
       deleted: false,
     },
@@ -34,7 +34,7 @@ const getDailyTimeline = asyncHandler(async (req: Request, res: Response) => {
   // Fetch Habit Logs
   const habitLogs = await prisma.habitTimeLog.findMany({
     where: {
-      habit: { userId: userIdNum },
+      habit: { userId: userIdNum, deleted: false },
       startedAt: { gte: startOfDay, lte: endOfDay },
       deleted: false,
     },
@@ -44,8 +44,9 @@ const getDailyTimeline = asyncHandler(async (req: Request, res: Response) => {
   // Fetch ToDo Logs
   const toDoLogs = await prisma.toDoLog.findMany({
     where: {
-      toDo: { userId: userIdNum },
+      toDo: { userId: userIdNum, deleted: false },
       startedAt: { gte: startOfDay, lte: endOfDay },
+      deleted: false,
     },
     include: { toDo: true },
   });

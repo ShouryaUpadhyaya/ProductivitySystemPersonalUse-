@@ -13,17 +13,18 @@ const getAllSubject = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'Unauthorized');
   }
 
-  if (typeof to !== 'string' || typeof from !== 'string') {
-    throw new ApiError(400, 'Invalid type of To/From');
-  }
-
   const subjects = await prisma.subject.findMany({
     where: {
       userId: Number(userId),
-      createdAt: {
-        gte: new Date(from),
-        lte: new Date(to),
-      },
+      deleted: false,
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from && { gte: new Date(from as string) }),
+              ...(to && { lte: new Date(to as string) }),
+            },
+          }
+        : {}),
     },
   });
   return res.status(200).json(new ApiResponse(200, subjects, 'Subjects fetched successfully'));
@@ -50,12 +51,23 @@ const createSubject = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateSubject = asyncHandler(async (req: Request, res: Response) => {
-  const { name, goalWorkSecs } = req.body;
+  const { name, goalWorkSecs, color } = req.body;
   const { id } = req.params;
   const idNum = Number(id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!idNum) {
     throw new ApiError(400, 'Invalid Subject ID');
+  }
+
+  // Verify ownership
+  const existingSubject = await prisma.subject.findFirst({
+    where: { id: idNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!existingSubject) {
+    throw new ApiError(404, 'Subject not found');
   }
 
   const subject = await prisma.subject.update({
@@ -65,6 +77,7 @@ const updateSubject = asyncHandler(async (req: Request, res: Response) => {
     data: {
       ...(name !== undefined && { name }),
       ...(goalWorkSecs !== undefined && { goalWorkSecs: Number(goalWorkSecs) }),
+      ...(color !== undefined && { color }),
     },
   });
 
@@ -74,22 +87,42 @@ const updateSubject = asyncHandler(async (req: Request, res: Response) => {
 const deleteSubject = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const idNum = Number(id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
-  const subject = await prisma.subject.update({
+  // Soft delete and verify ownership
+  const subject = await prisma.subject.updateMany({
     where: {
       id: idNum,
+      userId: Number(userId),
     },
     data: {
       deleted: true,
     },
   });
 
-  res.status(200).json(new ApiResponse(200, subject, 'Subject Deleted successfully'));
+  if (subject.count === 0) {
+    throw new ApiError(404, 'Subject not found');
+  }
+
+  res.status(200).json(new ApiResponse(200, null, 'Subject Deleted successfully'));
 });
 
 const startSubjectLog = asyncHandler(async (req: Request, res: Response) => {
   const { subjectId } = req.params;
   const subjectIdNum = Number(subjectId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
+
+  // Verify ownership
+  const subject = await prisma.subject.findFirst({
+    where: { id: subjectIdNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!subject) {
+    throw new ApiError(404, 'Subject not found');
+  }
+
   const log = await prisma.subjectLog.create({
     data: {
       subjectId: subjectIdNum,
@@ -103,15 +136,25 @@ const endSubjectLog = asyncHandler(async (req: Request, res: Response) => {
   const { subjectId } = req.params;
   const { endedAt } = req.body;
   const subjectIdNum = Number(subjectId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
+
   const activeLog = await prisma.subjectLog.findFirst({
     where: {
       subjectId: subjectIdNum,
       endedAt: null,
+      deleted: false,
+      subject: {
+        userId: Number(userId),
+        deleted: false,
+      },
     },
   });
+
   if (!activeLog) {
     throw new ApiError(404, 'Subject timer not found');
   }
+
   const updatedLog = await prisma.subjectLog.update({
     where: { id: activeLog.id },
     data: {
@@ -119,7 +162,11 @@ const endSubjectLog = asyncHandler(async (req: Request, res: Response) => {
     },
     include: {
       subject: {
-        include: { habits: true },
+        include: {
+          habits: {
+            where: { deleted: false },
+          },
+        },
       },
     },
   });
@@ -148,7 +195,6 @@ const endSubjectLog = asyncHandler(async (req: Request, res: Response) => {
 
   if (updatedLog.subject.goalWorkSecs > 0 && totalSecs >= updatedLog.subject.goalWorkSecs) {
     for (const habit of updatedLog.subject.habits) {
-      if (habit.deleted) continue;
       const existingHabitLog = await prisma.habitTimeLog.findFirst({
         where: {
           habitId: habit.id,
@@ -176,9 +222,20 @@ const getSubjectLogs = asyncHandler(async (req: Request, res: Response) => {
   const { subjectId } = req.params;
   const subjectIdNum = Number(subjectId);
   const { from, to } = req.query;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!subjectId) {
     throw new ApiError(400, 'Subject ID is required');
+  }
+
+  // Verify ownership
+  const subject = await prisma.subject.findFirst({
+    where: { id: subjectIdNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!subject) {
+    throw new ApiError(404, 'Subject not found');
   }
 
   const logs = await prisma.subjectLog.findMany({
@@ -277,6 +334,7 @@ const getDashboardData = asyncHandler(async (req: Request, res: Response) => {
     where: {
       subject: {
         userId: userIdNum,
+        deleted: false,
       },
       startedAt: {
         gte: today,
@@ -300,6 +358,7 @@ const getDashboardData = asyncHandler(async (req: Request, res: Response) => {
     where: {
       subject: {
         userId: userIdNum,
+        deleted: false,
       },
       ...(from || to
         ? {

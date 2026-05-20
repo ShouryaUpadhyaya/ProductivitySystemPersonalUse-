@@ -27,21 +27,8 @@ app.use(
 
 app.use(passport.initialize());
 
-async function seed() {
-  const user = await prisma.user.findUnique({ where: { id: 1 } });
-  if (user) {
-    await prisma.subject.create({
-      data: {
-        name: 'coding',
-        userId: 1,
-      },
-    });
-  }
-}
-
 app.listen(process.env.PORT || 4000, () => {
   console.log(`Running on http://localhost:${process.env.PORT}`);
-  seed();
 });
 // app.route;
 app.get('/', async (req, res) => res.send(await prisma.user.findMany()));

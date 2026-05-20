@@ -73,6 +73,17 @@ const updateHabit = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, description, difficulty, subjectId, deleted } = req.body;
   const idNum = Number(id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
+
+  // Verify ownership
+  const existingHabit = await prisma.habit.findFirst({
+    where: { id: idNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!existingHabit) {
+    throw new ApiError(404, 'Habit not found');
+  }
 
   const updatedHabit = await prisma.habit.update({
     where: {
@@ -93,6 +104,17 @@ const updateHabit = asyncHandler(async (req: Request, res: Response) => {
 const startHabitLog = asyncHandler(async (req: Request, res: Response) => {
   const { habitId } = req.params;
   const habitIdNum = Number(habitId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
+
+  // Verify ownership
+  const habit = await prisma.habit.findFirst({
+    where: { id: habitIdNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!habit) {
+    throw new ApiError(404, 'Habit not found');
+  }
 
   const log = await prisma.habitTimeLog.create({
     data: {
@@ -107,12 +129,18 @@ const startHabitLog = asyncHandler(async (req: Request, res: Response) => {
 const endHabitLog = asyncHandler(async (req: Request, res: Response) => {
   const { habitId } = req.params;
   const habitIdNum = Number(habitId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   const activeLog = await prisma.habitTimeLog.findFirst({
     where: {
       habitId: habitIdNum,
       endedAt: null,
       deleted: false,
+      habit: {
+        userId: Number(userId),
+        deleted: false,
+      },
     },
   });
 
@@ -134,9 +162,20 @@ const getHabitLogs = asyncHandler(async (req: Request, res: Response) => {
   const { habitId } = req.params;
   const habitIdNum = Number(habitId);
   const { from, to } = req.query;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!habitId) {
     throw new ApiError(400, 'Habit ID is required');
+  }
+
+  // Verify ownership
+  const habit = await prisma.habit.findFirst({
+    where: { id: habitIdNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!habit) {
+    throw new ApiError(404, 'Habit not found');
   }
 
   const logs = await prisma.habitTimeLog.findMany({
@@ -228,6 +267,7 @@ const getHabitDashboardData = asyncHandler(async (req: Request, res: Response) =
     where: {
       habit: {
         userId: userIdNum,
+        deleted: false,
       },
       startedAt: {
         gte: today,
@@ -243,6 +283,7 @@ const getHabitDashboardData = asyncHandler(async (req: Request, res: Response) =
     where: {
       habit: {
         userId: userIdNum,
+        deleted: false,
       },
       endedAt: null,
       deleted: false,
@@ -268,6 +309,17 @@ const getHabitDashboardData = asyncHandler(async (req: Request, res: Response) =
 const toggleHabitCompletion = asyncHandler(async (req: Request, res: Response) => {
   const { habitId } = req.params;
   const habitIdNum = Number(habitId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
+
+  // Verify ownership
+  const habit = await prisma.habit.findFirst({
+    where: { id: habitIdNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!habit) {
+    throw new ApiError(404, 'Habit not found');
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

@@ -15,9 +15,12 @@ const getAllToDos = asyncHandler(async (req: Request, res: Response) => {
   const toDos = await prisma.toDo.findMany({
     where: {
       userId: Number(userId),
+      deleted: false,
     },
     include: {
-      toDoLog: true,
+      toDoLog: {
+        where: { deleted: false },
+      },
     },
     orderBy: {
       createdAt: 'desc',
@@ -28,7 +31,7 @@ const getAllToDos = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const createToDo = asyncHandler(async (req: Request, res: Response) => {
-  const { title, description } = req.body;
+  const { title, description, priority, dueDate, status } = req.body;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userId = (req as any).user?.id;
 
@@ -39,8 +42,12 @@ const createToDo = asyncHandler(async (req: Request, res: Response) => {
   const toDo = await prisma.toDo.create({
     data: {
       title,
-      discription: description || '', // Matching schema's 'discription' spelling
+      description: description || '',
       userId: Number(userId),
+      priority: priority || 0,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      status: status || 'PENDING',
+      completedAt: status === 'DONE' ? new Date() : null,
     },
   });
 
@@ -49,11 +56,31 @@ const createToDo = asyncHandler(async (req: Request, res: Response) => {
 
 const updateToDo = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { title, description } = req.body;
+  const { title, description, status, priority, dueDate } = req.body;
   const idNum = Number(id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!id) {
     throw new ApiError(400, 'ToDo ID is required');
+  }
+
+  // Ensure user owns the todo
+  const existingToDo = await prisma.toDo.findFirst({
+    where: { id: idNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!existingToDo) {
+    throw new ApiError(404, 'ToDo not found');
+  }
+
+  let completedAt = existingToDo.completedAt;
+  if (status !== undefined) {
+    if (status === 'DONE' && existingToDo.status !== 'DONE') {
+      completedAt = new Date();
+    } else if (status !== 'DONE' && existingToDo.status === 'DONE') {
+      completedAt = null;
+    }
   }
 
   const updatedToDo = await prisma.toDo.update({
@@ -62,7 +89,11 @@ const updateToDo = asyncHandler(async (req: Request, res: Response) => {
     },
     data: {
       ...(title !== undefined && { title }),
-      ...(description !== undefined && { discription: description }),
+      ...(description !== undefined && { description }),
+      ...(status !== undefined && { status }),
+      ...(priority !== undefined && { priority }),
+      ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+      completedAt,
     },
   });
 
@@ -72,14 +103,21 @@ const updateToDo = asyncHandler(async (req: Request, res: Response) => {
 const deleteToDo = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const idNum = Number(id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!id) {
     throw new ApiError(400, 'ToDo ID is required');
   }
 
-  await prisma.toDo.delete({
+  // Soft delete
+  await prisma.toDo.updateMany({
     where: {
       id: idNum,
+      userId: Number(userId),
+    },
+    data: {
+      deleted: true,
     },
   });
 
@@ -89,9 +127,20 @@ const deleteToDo = asyncHandler(async (req: Request, res: Response) => {
 const startToDoLog = asyncHandler(async (req: Request, res: Response) => {
   const { toDoId } = req.params;
   const toDoIdNum = Number(toDoId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!toDoId) {
     throw new ApiError(400, 'ToDo ID is required');
+  }
+
+  // Verify ownership
+  const toDo = await prisma.toDo.findFirst({
+    where: { id: toDoIdNum, userId: Number(userId), deleted: false },
+  });
+
+  if (!toDo) {
+    throw new ApiError(404, 'ToDo not found');
   }
 
   const log = await prisma.toDoLog.create({
@@ -107,6 +156,8 @@ const startToDoLog = asyncHandler(async (req: Request, res: Response) => {
 const endToDoLog = asyncHandler(async (req: Request, res: Response) => {
   const { toDoId } = req.params;
   const toDoIdNum = Number(toDoId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userId = (req as any).user?.id;
 
   if (!toDoId) {
     throw new ApiError(400, 'ToDo ID is required');
@@ -116,6 +167,11 @@ const endToDoLog = asyncHandler(async (req: Request, res: Response) => {
     where: {
       toDoId: toDoIdNum,
       endedAt: null,
+      deleted: false,
+      toDo: {
+        userId: Number(userId),
+        deleted: false,
+      },
     },
   });
 
